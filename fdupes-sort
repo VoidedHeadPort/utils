@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Sorts the output of fdupes (currently using "sort -V")
+
+awk 'sort="sort -V" { print $0 | sort ; close(sort) ; print "" }' RS='\n\n' ORS='\n' "$@"
