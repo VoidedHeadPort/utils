@@ -1,0 +1,10 @@
+#!/bin/sh
+# Usage: exifdiff.sh path/file1.ext path/file2.ext parameters
+# eg:    exifdiff.sh dsc_7811.nef ./jpegs/dsc_7811.jpg
+# eg:    exifdiff.sh dsc_7811.nef ./jpegs/dsc_7811.jpg -a -G1 -datetimeoriginal
+
+B1=`basename ${1}`
+B2=`basename ${2}`
+
+exiftool "${@}"  -w! /tmp/%f.%e.txt \
+  && diff -d -y /tmp/${B1}.txt /tmp/${B2}.txt

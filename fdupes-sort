@@ -1,5 +1,7 @@
 #!/bin/bash
 
 # Sorts the output of fdupes (currently using "sort -V")
+# example usage:
+#   fdupes -r ????-??*/ | fdupes-sort > fdupes-r-sorted-via-pipe.log
 
 awk 'sort="sort -V" { print $0 | sort ; close(sort) ; print "" }' RS='\n\n' ORS='\n' "$@"
