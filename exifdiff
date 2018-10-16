@@ -3,8 +3,8 @@
 # eg:    exifdiff.sh dsc_7811.nef ./jpegs/dsc_7811.jpg
 # eg:    exifdiff.sh dsc_7811.nef ./jpegs/dsc_7811.jpg -a -G1 -datetimeoriginal
 
-B1=`basename ${1}`
-B2=`basename ${2}`
+B1=$(basename "${1}")
+B2=$(basename "${2}")
 
-exiftool "${@}"  -w! /tmp/%f.%e.txt \
-  && diff -d -y /tmp/${B1}.txt /tmp/${B2}.txt
+exiftool "${@}" -w! /tmp/%d%f.%e.txt \
+  && diff -y -W $(tput cols) /tmp/"${1}".txt /tmp/"${2}".txt
