@@ -6,5 +6,5 @@
 B1=$(basename "${1}")
 B2=$(basename "${2}")
 
-exiftool "${@}" -w! /tmp/%d%f.%e.txt \
-  && diff -y -W $(tput cols) /tmp/"${1}".txt /tmp/"${2}".txt
+exiftool -a -G1 -s "${@}" -w! /tmp/%d%f.%e.txt \
+	&& diff -y -W $(tput cols) <(sort /tmp/"${1}".txt) <(sort /tmp/"${2}".txt)
