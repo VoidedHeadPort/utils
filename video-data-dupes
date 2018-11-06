@@ -1,0 +1,47 @@
+#!/bin/bash
+
+DIR='.'
+
+if [[ $# > 0 ]]
+then
+    DIR="$1"
+    shift
+fi
+
+# To compute the SHA-256 hash of the input converted to raw audio and video, and store it in the file out.sha256:
+# ffmpeg -i INPUT -f hash out.sha256
+#
+# To print an MD5 hash to stdout use the command:
+# ffmpeg -i INPUT -f hash -hash md5 -
+#
+# See also the framehash muxer.
+#
+# $ ffmpeg -i ./2015-04-26/DSCN0255.MOV -f hash -loglevel quiet -
+# SHA256=0c871b5da03b7ae8b52340b1780775007feebdc3452a2571318e6cd05fa3973e
+# $ ffmpeg -i ./2015-04-26/DSCN0255.MOV -f hash -loglevel quiet - | sed -n -e 's/^SHA256=//p'
+# 0c871b5da03b7ae8b52340b1780775007feebdc3452a2571318e6cd05fa3973e
+# $ ffmpeg -i ./2001-04-05/DSCF0015.AVI -f hash -loglevel quiet - | sed -n -e 's/^SHA256=//p'
+# 9ad235a9e8b7423080b400076e505aa7c6ab066ed101892b11ae01ff014c14a6
+# $ ffmpeg -i ./2017-12-10/VID_20171209_134742.mp4 -f hash -loglevel quiet - | sed -n -e 's/^SHA256=//p'
+# df3d367af7ad118027ab573af1cd74764ffcb6bf6601f12ccc93547890798e60
+#
+# This matches the SHA-256 hash that imagemagick uses...
+
+echo "Finding and Identifying"
+IFS=$'\n'
+for video in $(find "$DIR" -iname '*.avi' -or -iname '*.mov' -or -iname '*.mpg')
+# This method ends up trimming random  (0-5) characters of the beginning of some lines
+# find "$DIR" -iname '*.avi' -or -iname '*.mov' -or -iname '*.mpg' | while read -r video
+do
+    ffmpeg -i "$video" -f hash -loglevel quiet - | sed -n -e 's/^SHA256=//' -e "s|\$| $video|p"
+done | tee "$DIR"/video-data-hash.txt
+unset IFS
+
+echo "Sorting"
+sort "$DIR"/video-data-hash.txt | tee "$DIR"/video-data-sorted.txt
+
+echo "Filtering"
+uniq --check-chars=64 --all-repeated=separate "$DIR"/video-data-sorted.txt | tee "$DIR"/video-data-uniq.txt
+
+echo "Finalising"
+cut -b 66- "$DIR"/video-data-uniq.txt | tee "$DIR"/video-data.txt

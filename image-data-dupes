@@ -1,0 +1,24 @@
+#!/bin/bash
+
+DIR='.'
+
+if [[ $# > 0 ]]
+then
+    DIR="$1"
+    shift
+fi
+
+# identify -quiet -format "%#" images...
+# identify -quiet -format "%# %f\n" *
+
+echo "Finding and Identifying"
+find "$DIR" -type f -print0 | xargs -0 identify -quiet -format "%# %d/%f\n" | tee "$DIR"/image-data-hash.txt
+
+echo "Sorting"
+sort "$DIR"/image-data-hash.txt | tee "$DIR"/image-data-sorted.txt
+
+echo "Filtering"
+uniq --check-chars=64 --all-repeated=separate "$DIR"/image-data-sorted.txt | tee "$DIR"/image-data-uniq.txt
+
+echo "Finalising"
+cut -b 66- "$DIR"/image-data-uniq.txt | tee "$DIR"/image-data.txt
