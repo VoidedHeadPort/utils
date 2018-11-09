@@ -1,5 +1,6 @@
 
 import argparse
+import difflib
 import exiftool
 
 
@@ -36,11 +37,65 @@ def calculate_diff(metadata, sorted):
     # It's possible to have the json parser put it into an OrderedDict, however we need to get that working through the
     # exiftool plugin. More info: https://stackoverflow.com/questions/6921699/can-i-get-json-to-load-into-an-ordereddict
     # Keys are in the expected order - I believe there was a PEP that fixed dict ordering (at least for python 3.6+)
-    return {}
+    diff = [];
+    for i in range(len(metadata) - 1):
+        s = difflib.SequenceMatcher(None, list(metadata[i]), list(metadata[i+1]))
+        diff.append(s.get_opcodes())
+    return diff
 
 
-def print_diff(diff, width):
-    pass
+tag_symbol = {
+    'replace' : '|',
+    'delete'  : '<',
+    'insert'  : '>',
+    'equal'   : ' '
+}
+
+
+def print_opcode(metadata, opcode, width):
+    width = str(int((width - 3) / 2))
+    fmt = "{:<" + width + "} {} {}"
+    keys = [list(metadata[0]), list(metadata[1])]
+    tag, i1, i2, j1, j2 = opcode
+    symbol = tag_symbol[tag]
+    i = i1
+    j = j1
+    while i < i2 and j < j2:
+        sym = symbol
+
+        if i < i2:
+            ik = keys[0][i]
+            iv = str(metadata[0][ik])
+            left = ik + " : " + iv
+            i = i + 1
+        else:
+            left = ""
+
+        if j < j2:
+            jk = keys[1][j]
+            jv = str(metadata[1][jk])
+            right = jk + " : " + jv
+            j = j + 1
+        else:
+            right = ""
+
+        if symbol == ' ' and iv != jv:
+            sym = '|'
+        else:
+            sym = symbol
+
+        print(fmt.format(left, sym, right))
+
+
+def print_opcodes(metadata, opcodes, width):
+    for opcode in opcodes:
+        print_opcode(metadata, opcode, width)
+
+
+def print_diff(metadata, diff, width):
+    for i, opcodes in enumerate(diff):
+        print_opcodes(metadata[i:i+2], opcodes, width)
+        print()
 
 
 def exif_diff(args):
@@ -48,7 +103,7 @@ def exif_diff(args):
     if args.sorted:
         metadata = sort_metadata(metadata)
     diff = calculate_diff(metadata, sorted=args.sorted)
-    print_diff(diff, width=args.width)
+    print_diff(metadata, diff, width=args.width)
 
 
 if __name__ == "__main__":
