@@ -37,7 +37,7 @@ def calculate_diff(metadata, sorted):
     # It's possible to have the json parser put it into an OrderedDict, however we need to get that working through the
     # exiftool plugin. More info: https://stackoverflow.com/questions/6921699/can-i-get-json-to-load-into-an-ordereddict
     # Keys are in the expected order - I believe there was a PEP that fixed dict ordering (at least for python 3.6+)
-    diff = [];
+    diff = []
     for i in range(len(metadata) - 1):
         s = difflib.SequenceMatcher(None, list(metadata[i]), list(metadata[i+1]))
         diff.append(s.get_opcodes())
@@ -45,10 +45,10 @@ def calculate_diff(metadata, sorted):
 
 
 tag_symbol = {
-    'replace' : '|',
-    'delete'  : '<',
-    'insert'  : '>',
-    'equal'   : ' '
+    'replace': '|',
+    'delete':  '<',
+    'insert':  '>',
+    'equal':   ' '
 }
 
 
@@ -57,32 +57,68 @@ def print_opcode(metadata, opcode, width):
     fmt = "{:<" + width + "} {} {}"
     keys = [list(metadata[0]), list(metadata[1])]
     tag, i1, i2, j1, j2 = opcode
-    symbol = tag_symbol[tag]
+
+    if tag == 'replace':
+        assert(i1 != i2)
+        assert(j1 != j2)
+    elif tag == 'delete':
+        assert(i1 != i2)
+        assert(j1 == j2)
+    elif tag == 'insert':
+        assert(i1 == i2)
+        assert(j1 != j2)
+    elif tag == 'equal':
+        assert(i1 != i2)
+        assert(j1 != j2)
+        assert(i2 - i1 == j2 - j1)
+
     i = i1
     j = j1
-    while i < i2 and j < j2:
-        sym = symbol
+    while i < i2 or j < j2:
+        sym = tag_symbol[tag]
 
         if i < i2:
             ik = keys[0][i]
             iv = str(metadata[0][ik])
             left = ik + " : " + iv
-            i = i + 1
         else:
+            ik = iv = None
             left = ""
 
         if j < j2:
             jk = keys[1][j]
             jv = str(metadata[1][jk])
             right = jk + " : " + jv
-            j = j + 1
         else:
+            jk = jv = None
             right = ""
 
-        if symbol == ' ' and iv != jv:
-            sym = '|'
-        else:
-            sym = symbol
+        if tag == 'replace':
+            assert(ik != jk)
+            if ik != None and (jk == None or ik < jk):
+                i = i + 1
+                right = ""
+                sym = tag_symbol['delete']
+            else:
+                assert(ik == None or ik > jk)
+                j = j + 1
+                left = ""
+                sym = tag_symbol['insert']
+        elif tag == 'delete':
+            assert(ik != None)
+            assert(jk == None)
+            i = i + 1
+        elif tag == 'insert':
+            assert(ik == None)
+            assert(jk != None)
+            j = j + 1
+        elif tag == 'equal':
+            i = i + 1
+            j = j + 1
+            assert(ik == jk)
+            assert(iv != None and jv != None)
+            if iv != jv:
+                sym = tag_symbol['replace']
 
         print(fmt.format(left, sym, right))
 
