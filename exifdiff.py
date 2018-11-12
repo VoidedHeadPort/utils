@@ -54,7 +54,7 @@ tag_symbol = {
 
 def print_opcode(metadata, opcode, width):
     width = str(int((width - 3) / 2))
-    fmt = "{:<" + width + "} {} {}"
+    fmt = "{{:{width}.{width}}} {{}} {{:{width}.{width}}}".format(width=width)
     keys = [list(metadata[0]), list(metadata[1])]
     tag, i1, i2, j1, j2 = opcode
 
