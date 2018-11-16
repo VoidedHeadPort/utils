@@ -4,6 +4,24 @@ import difflib
 import exiftool
 
 
+class MetaData():
+    def __init__(self, data):
+        self._data = data
+        self._keys = list(data)
+
+    def keys(self):
+        return self._keys
+
+    def sort(self, *args, **kwargs):
+        self._keys.sort(*args, **kwargs)
+
+    def __getitem__(self, x):
+        return self._data[x]
+
+    def __iter__(self):
+        yield from self._keys
+
+
 def parse_args():
     parser = argparse.ArgumentParser("Display a side-by-side comparison of exif data")
     parser.add_argument('-s', '--sorted', action='store_true', default=True)
@@ -23,16 +41,21 @@ def get_metadata(files):
     # Both of these are set using ["-common_args", "-G", "-n"] when start() is called on the ExifTool context manager
     # The arguments ["-a", "-G1", "--n"] should get this effect
     # This doesn't work because -common_args are added at the end - overriding my attempt at overriding the values...
+    metadata = []
     with exiftool.ExifTool() as et:
-        return et.get_metadata_batch(["-a", "-G1", "--n"] + files)
+        for data in et.get_metadata_batch(["-a", "-G1", "--n"] + files):
+            metadata.append(MetaData(data))
+    return metadata
 
 
 def sort_metadata(metadata):
     # We can't sort the dictionary, we'll have to use sorted(dictionary) which returns a list of sorted keys
+    for md in metadata:
+        md.sort()
     return metadata
 
 
-def calculate_diff(metadata, sorted):
+def calculate_diff(metadata):
     # All input will have to be sorted, otherwise it will use whatever uncontrollable order map uses
     # It's possible to have the json parser put it into an OrderedDict, however we need to get that working through the
     # exiftool plugin. More info: https://stackoverflow.com/questions/6921699/can-i-get-json-to-load-into-an-ordereddict
@@ -53,7 +76,7 @@ tag_symbol = {
 
 
 def print_opcode(metadata, opcode, width):
-    width = str(int((width - 3) / 2))
+    width = int((width - 3) / 2)
     fmt = "{{:{width}.{width}}} {{}} {{:{width}.{width}}}".format(width=width)
     keys = [list(metadata[0]), list(metadata[1])]
     tag, i1, i2, j1, j2 = opcode
@@ -137,8 +160,8 @@ def print_diff(metadata, diff, width):
 def exif_diff(args):
     metadata = get_metadata(args.files)
     if args.sorted:
-        metadata = sort_metadata(metadata)
-    diff = calculate_diff(metadata, sorted=args.sorted)
+        sort_metadata(metadata)
+    diff = calculate_diff(metadata)
     print_diff(metadata, diff, width=args.width)
 
 
