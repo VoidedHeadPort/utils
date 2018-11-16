@@ -4,9 +4,9 @@ import difflib
 import exiftool
 
 
-class MetaData():
+class MetaData(dict):
     def __init__(self, data):
-        self._data = data
+        super().__init__(data)
         self._keys = list(data)
 
     def keys(self):
@@ -15,8 +15,11 @@ class MetaData():
     def sort(self, *args, **kwargs):
         self._keys.sort(*args, **kwargs)
 
-    def __getitem__(self, x):
-        return self._data[x]
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._keys[key]
+        else:
+            return super().__getitem__(key)
 
     def __iter__(self):
         yield from self._keys
@@ -55,6 +58,49 @@ def sort_metadata(metadata):
     return metadata
 
 
+def filter_opcodes(opcodes, metadata):
+    filtered = []
+
+    for opcode in opcodes:
+        tag, i1, i2, j1, j2 = opcode
+
+        if tag != 'replace':
+            filtered.append(opcode)
+        else:
+            i = i1
+            j = j1
+            while i < i2 or j < j2:
+                if i < i2:
+                    ik = metadata[0][i]
+                    iv = str(metadata[0][ik])
+                    left = ik + " : " + iv
+                else:
+                    ik = iv = None
+                    left = ""
+
+                if j < j2:
+                    jk = metadata[1][j]
+                    jv = str(metadata[1][jk])
+                    right = jk + " : " + jv
+                else:
+                    jk = jv = None
+                    right = ""
+
+                assert(ik != jk)
+                if ik != None and (jk == None or ik < jk):
+                    i = i + 1
+                    right = ""
+                    sym = tag_symbol['delete']
+                else:
+                    assert(ik == None or ik > jk)
+                    j = j + 1
+                    left = ""
+                    sym = tag_symbol['insert']
+
+    #return filtered
+    return opcodes
+
+
 def calculate_diff(metadata):
     # All input will have to be sorted, otherwise it will use whatever uncontrollable order map uses
     # It's possible to have the json parser put it into an OrderedDict, however we need to get that working through the
@@ -63,6 +109,7 @@ def calculate_diff(metadata):
     diff = []
     for i in range(len(metadata) - 1):
         s = difflib.SequenceMatcher(None, list(metadata[i]), list(metadata[i+1]))
+        opcodes = filter_opcodes(s.get_opcodes(), [metadata[i], metadata[i+1]])
         diff.append(s.get_opcodes())
     return diff
 
@@ -78,7 +125,6 @@ tag_symbol = {
 def print_opcode(metadata, opcode, width):
     width = int((width - 3) / 2)
     fmt = "{{:{width}.{width}}} {{}} {{:{width}.{width}}}".format(width=width)
-    keys = [list(metadata[0]), list(metadata[1])]
     tag, i1, i2, j1, j2 = opcode
 
     if tag == 'replace':
@@ -101,7 +147,7 @@ def print_opcode(metadata, opcode, width):
         sym = tag_symbol[tag]
 
         if i < i2:
-            ik = keys[0][i]
+            ik = metadata[0][i]
             iv = str(metadata[0][ik])
             left = ik + " : " + iv
         else:
@@ -109,7 +155,7 @@ def print_opcode(metadata, opcode, width):
             left = ""
 
         if j < j2:
-            jk = keys[1][j]
+            jk = metadata[1][j]
             jv = str(metadata[1][jk])
             right = jk + " : " + jv
         else:
