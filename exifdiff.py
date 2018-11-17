@@ -58,47 +58,72 @@ def sort_metadata(metadata):
     return metadata
 
 
-def filter_opcodes(opcodes, metadata):
+def search_opcode_delete(metadata, i1, i2, j1, j2):
+    if i1 < i2:
+        if j1 < j2:
+            # Actually search for delete events
+            i = i1
+            while i < i2 and metadata[0][i] < metadata[1][j1]:
+                i = i + 1
+            if i > i1:
+                return ('delete', i1, i, j1, j1)
+            else:
+                return None
+        else:
+            # Consume everything
+            return ('delete', i1, i2, j2, j2)
+    else:
+        return None
+
+
+def search_opcode_insert(metadata, i1, i2, j1, j2):
+    if j1 < j2:
+        if i1 < i2:
+            # Actually search for insert events
+            j = j1
+            while j < j2 and metadata[0][i1] > metadata[1][j]:
+                j = j + 1
+            if j > j1:
+                return ('insert', i1, i1, j1, j)
+            else:
+                return None
+        else:
+            # Consume everything
+            return ('insert', i2, i2, j1, j2)
+    else:
+        return None
+
+
+def transform_opcode_replace(metadata, opcode):
+    tag, i1, i2, j1, j2 = opcode
+    filtered = []
+
+    while i1 < i2 or j1 < j2:
+        opcode_delete = search_opcode_delete(metadata, i1, i2, j1, j2)
+        if opcode_delete:
+            i1 = opcode_delete[2]
+            filtered.append(opcode_delete)
+
+        opcode_insert = search_opcode_insert(metadata, i1, i2, j1, j2)
+        if opcode_insert:
+            j1 = opcode_insert[4]
+            filtered.append(opcode_insert)
+
+        assert(opcode_insert or opcode_delete)
+
+    return filtered
+
+
+def filter_opcodes(metadata, opcodes):
     filtered = []
 
     for opcode in opcodes:
-        tag, i1, i2, j1, j2 = opcode
-
-        if tag != 'replace':
-            filtered.append(opcode)
+        if opcode[0] == 'replace':
+            filtered.extend(transform_opcode_replace(metadata, opcode))
         else:
-            i = i1
-            j = j1
-            while i < i2 or j < j2:
-                if i < i2:
-                    ik = metadata[0][i]
-                    iv = str(metadata[0][ik])
-                    left = ik + " : " + iv
-                else:
-                    ik = iv = None
-                    left = ""
+            filtered.append(opcode)
 
-                if j < j2:
-                    jk = metadata[1][j]
-                    jv = str(metadata[1][jk])
-                    right = jk + " : " + jv
-                else:
-                    jk = jv = None
-                    right = ""
-
-                assert(ik != jk)
-                if ik != None and (jk == None or ik < jk):
-                    i = i + 1
-                    right = ""
-                    sym = tag_symbol['delete']
-                else:
-                    assert(ik == None or ik > jk)
-                    j = j + 1
-                    left = ""
-                    sym = tag_symbol['insert']
-
-    #return filtered
-    return opcodes
+    return filtered
 
 
 def calculate_diff(metadata):
@@ -109,7 +134,7 @@ def calculate_diff(metadata):
     diff = []
     for i in range(len(metadata) - 1):
         s = difflib.SequenceMatcher(None, list(metadata[i]), list(metadata[i+1]))
-        opcodes = filter_opcodes(s.get_opcodes(), [metadata[i], metadata[i+1]])
+        opcodes = filter_opcodes([metadata[i], metadata[i + 1]], s.get_opcodes())
         diff.append(s.get_opcodes())
     return diff
 
