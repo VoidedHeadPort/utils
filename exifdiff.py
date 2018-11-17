@@ -135,7 +135,7 @@ def calculate_diff(metadata):
     for i in range(len(metadata) - 1):
         s = difflib.SequenceMatcher(None, list(metadata[i]), list(metadata[i+1]))
         opcodes = filter_opcodes([metadata[i], metadata[i + 1]], s.get_opcodes())
-        diff.append(s.get_opcodes())
+        diff.append(opcodes)
     return diff
 
 
@@ -152,10 +152,9 @@ def print_opcode(metadata, opcode, width):
     fmt = "{{:{width}.{width}}} {{}} {{:{width}.{width}}}".format(width=width)
     tag, i1, i2, j1, j2 = opcode
 
-    if tag == 'replace':
-        assert(i1 != i2)
-        assert(j1 != j2)
-    elif tag == 'delete':
+    # We shouldn't have any 'replace' opcodes since they are transformed
+    assert(tag != 'replace')
+    if tag == 'delete':
         assert(i1 != i2)
         assert(j1 == j2)
     elif tag == 'insert':
@@ -187,30 +186,19 @@ def print_opcode(metadata, opcode, width):
             jk = jv = None
             right = ""
 
-        if tag == 'replace':
-            assert(ik != jk)
-            if ik != None and (jk == None or ik < jk):
-                i = i + 1
-                right = ""
-                sym = tag_symbol['delete']
-            else:
-                assert(ik == None or ik > jk)
-                j = j + 1
-                left = ""
-                sym = tag_symbol['insert']
-        elif tag == 'delete':
-            assert(ik != None)
-            assert(jk == None)
+        if tag == 'delete':
+            assert(ik is not None)
+            assert(jk is None)
             i = i + 1
         elif tag == 'insert':
-            assert(ik == None)
-            assert(jk != None)
+            assert(ik is None)
+            assert(jk is not None)
             j = j + 1
         elif tag == 'equal':
+            assert(ik == jk)
+            assert(iv is not None and jv is not None)
             i = i + 1
             j = j + 1
-            assert(ik == jk)
-            assert(iv != None and jv != None)
             if iv != jv:
                 sym = tag_symbol['replace']
 
